@@ -20,6 +20,7 @@ import 'package:stop_watch_timer/stop_watch_timer.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:easy_image_viewer/easy_image_viewer.dart';
+import 'package:dropdown_button2/dropdown_button2.dart';
 
 class FocusCirclePainter extends CustomPainter {
   final Offset focusPoint;
@@ -74,30 +75,54 @@ class _Home_PageState extends State<Home_Page> {
   Offset? focusPoint;
   Timer? _focusTimer;
   bool videoRecorded = false;
+  double _currentZoomLevel = 1.0;
+  double _baseZoomLevel = 1.0;
+  double _minZoomLevel = 1.0; // Default min zoom level
+  double _maxZoomLevel = 8.0;
+
+  final List<String> items = [
+    '230P',
+    '720P',
+    '2160P',
+  ];
+  String selectedValue = "2160P";
 
   late File vfile;
-
+  int camera = 0;
   late File Capturedimage = File('img1.jpg');
   late cam.XFile imagee;
 
   final StopWatchTimer _stopWatchTimer = StopWatchTimer();
 
-  Future<void> initializeCamera(int camera) async {
+  Future<void> initializeCamera(camera, res) async {
     final cameras = await cam.availableCameras();
-    cameraController = cam.CameraController(
-        cameras[camera], cam.ResolutionPreset.high,
-        enableAudio: true);
+
+    if (res == "230P") {
+      cameraController = cam.CameraController(
+          cameras[camera], cam.ResolutionPreset.low,
+          enableAudio: true);
+    } else if (res == "720P") {
+      cameraController = cam.CameraController(
+          cameras[camera], cam.ResolutionPreset.high,
+          enableAudio: true);
+    } else if (res == "2160P") {
+      cameraController = cam.CameraController(
+          cameras[camera], cam.ResolutionPreset.ultraHigh,
+          enableAudio: true);
+    }
     cameraValue = cameraController.initialize();
-    await cameraValue; // Make sure to wait for the initialization to complete
-    setState(() {
-      // Update the state to reflect that the camera is now initialized
-    });
+    await cameraValue;
+
+    _minZoomLevel = await cameraController.getMinZoomLevel();
+    _maxZoomLevel = await cameraController.getMaxZoomLevel();
+
+    setState(() {});
   }
 
   @override
   void initState() {
     super.initState();
-    initializeCamera(0); // Initialize the camera when the widget is created
+    initializeCamera(camera, selectedValue);
   }
 
   @override
@@ -340,13 +365,15 @@ class _Home_PageState extends State<Home_Page> {
             actions: [
               Container(
                   margin: EdgeInsets.only(right: 18),
-                  child: isRearCamera
+                  child: isRecording
                       ? Icon(
-                          Icons.filter,
+                          CupertinoIcons.color_filter,
+                          size: 30,
                           color: Colors.white,
                         )
                       : Icon(
-                          Icons.filter,
+                          CupertinoIcons.color_filter,
+                          size: 30,
                           color: Colors.white,
                         ))
             ],
@@ -387,27 +414,98 @@ class _Home_PageState extends State<Home_Page> {
                       );
                     },
                   )
-                : Container(),
+                : DropdownButtonHideUnderline(
+                          child: DropdownButton2<String>(
+                              isExpanded: true,
+                              hint: Text(
+                                'Max',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              items: items
+                                  .map(
+                                      (String item) => DropdownMenuItem<String>(
+                                            value: item,
+                                            child: Text(
+                                              item,
+                                              style: const TextStyle(
+                                                  fontSize: 14,
+                                                  color: Color.fromARGB(
+                                                      255, 255, 255, 255)),
+                                            ),
+                                          ))
+                                  .toList(),
+                              value: selectedValue,
+
+                              onChanged: (String? value) {
+                                initializeCamera(camera, value);
+                                setState(() {
+                                  selectedValue = value!;
+                                });
+                              },
+                              buttonStyleData: ButtonStyleData(
+                                  padding: EdgeInsets.symmetric(horizontal: 5),
+                                  height: size.height*0.030,
+                                  width: size.width*0.21,
+                                  decoration: BoxDecoration(
+                                    color: Color.fromARGB(255, 0, 0, 0),
+                                    borderRadius: BorderRadius.circular(5),
+                                  )),
+                              dropdownStyleData: DropdownStyleData(
+                                  decoration: BoxDecoration(
+                                color: Color.fromARGB(255, 0, 0, 0),
+                                borderRadius: BorderRadius.circular(5),
+                              )),
+                              menuItemStyleData: MenuItemStyleData(
+                                height: 40,
+                              )),
+                        ),
+            leadingWidth: 78,
             leading: GestureDetector(
                 onTap: FLash,
-                child: Container(
-                    margin: EdgeInsets.only(right: 18),
-                    child: isFlashOn == 0
-                        ? Icon(
-                            Icons.flash_off,
-                            color: Colors.white,
-                          )
-                        : isFlashOn == 1
+                child: Row(
+                  children: [
+                    Container(
+                        margin: EdgeInsets.only(left: 18),
+                        child: isFlashOn == 0
                             ? Icon(
-                                Icons.flash_auto,
+                                CupertinoIcons.bolt_circle,
+                                size: 25,
                                 color: Colors.white,
                               )
-                            : isFlashOn == 2
-                                ? Icon(
-                                    Icons.flash_on,
-                                    color: Colors.white,
+                            : isFlashOn == 1
+                                ? Row(
+                                    children: [
+                                      Icon(
+                                        CupertinoIcons.bolt_circle,
+                                        size: 25,
+                                        color:
+                                            Color.fromARGB(255, 255, 255, 255),
+                                      ),
+                                      SizedBox(
+                                        width: 5,
+                                      ),
+                                      Text(
+                                        "Auto",
+                                        style: GoogleFonts.robotoCondensed(
+                                            color: Colors.white,
+                                            fontSize: size.width * 0.038,
+                                            letterSpacing: 1,
+                                            fontWeight: FontWeight.w500),
+                                      )
+                                    ],
                                   )
-                                : Container()))),
+                                : isFlashOn == 2
+                                    ? Icon(
+                                        CupertinoIcons.bolt_circle_fill,
+                                        size: 25,
+                                        color: Colors.white,
+                                      )
+                                    : Container()),
+                  ],
+                ))),
         bottomNavigationBar: BottomAppBar(
           height: 170,
           padding: EdgeInsets.all(0),
@@ -555,18 +653,23 @@ class _Home_PageState extends State<Home_Page> {
                             ),
                       GestureDetector(
                         onTap: () {
-                          setState(() {
-                            isRearCamera = !isRearCamera;
-                          });
-                          isRearCamera
-                              ? initializeCamera(0)
-                              : initializeCamera(1);
+                          if (camera == 0) {
+                            setState(() {
+                              camera = 1;
+                              initializeCamera(camera, selectedValue);
+                            });
+                          }else{
+                            setState(() {
+                              camera = 0;
+                              initializeCamera(camera, selectedValue);
+                            });
+                          }
                         },
                         child: Container(
                             width: 50,
                             height: 50,
                             child: Icon(
-                              Icons.cameraswitch,
+                              CupertinoIcons.arrow_2_circlepath,
                               color: Colors.white,
                               size: 30,
                             )),
@@ -583,6 +686,16 @@ class _Home_PageState extends State<Home_Page> {
           children: [
             GestureDetector(
               onTapDown: (details) => onViewFinderTap(details),
+              onScaleStart: (ScaleStartDetails details) {
+                _baseZoomLevel = _currentZoomLevel;
+              },
+              onScaleUpdate: (ScaleUpdateDetails details) {
+                setState(() {
+                  _currentZoomLevel = (_baseZoomLevel * details.scale)
+                      .clamp(_minZoomLevel, _maxZoomLevel);
+                  cameraController.setZoomLevel(_currentZoomLevel);
+                });
+              },
               child: AnimatedOpacity(
                 opacity: isBlinking ? 0.0 : 1.0,
                 duration: Duration(milliseconds: 200),
